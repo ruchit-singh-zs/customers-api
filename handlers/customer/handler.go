@@ -1,6 +1,7 @@
 package customer
 
 import (
+	"customerApi/stores"
 	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
@@ -12,7 +13,15 @@ import (
 	"customerApi/models"
 )
 
-func Create(w http.ResponseWriter, r *http.Request) {
+type handler struct {
+	store stores.Customer
+}
+
+func New(store stores.Customer) handler {
+	return handler{store: store}
+}
+
+func (h handler) Create(w http.ResponseWriter, r *http.Request) {
 	db, err := drivers.ConnectToSQL()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -33,9 +42,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO Customer (ID,NAME , PHONENO, ADDRESS) VALUES (?,?, ?, ?)",
-		c.ID, c.Name, c.PhoneNo, c.Address)
-
+	err = h.store.CreateCustomer(c)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_, errs := w.Write([]byte("Error in Inserting"))
@@ -53,7 +60,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetByID(w http.ResponseWriter, r *http.Request) {
+func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	db, err := drivers.ConnectToSQL()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -64,11 +71,7 @@ func GetByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 
-	var c models.Customer
-
-	err = db.QueryRow("SELECT * FROM Customer WHERE ID = ?", id).
-		Scan(&c.ID, &c.Name, &c.PhoneNo, &c.Address)
-
+	c, err := h.store.GetCustomer(id)
 	switch err {
 	case sql.ErrNoRows:
 		w.WriteHeader(http.StatusNotFound)
@@ -83,7 +86,6 @@ func GetByID(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
 		_, err = w.Write(resp)
 
 		if err != nil {
@@ -94,7 +96,7 @@ func GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func UpdateByID(w http.ResponseWriter, r *http.Request) {
+func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	db, err := drivers.ConnectToSQL()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -118,9 +120,7 @@ func UpdateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("UPDATE Customer SET NAME = ?, PHONENO=?, ADDRESS=? WHERE ID = ?",
-		&c.Name, &c.PhoneNo, &c.Address, id)
-
+	err = h.store.UpdateCustomer(id, c)
 	if err != nil {
 		log.Printf("Error in Updating: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -134,7 +134,7 @@ func UpdateByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func DeleteByID(w http.ResponseWriter, r *http.Request) {
+func (h handler) DeleteByID(w http.ResponseWriter, r *http.Request) {
 	db, err := drivers.ConnectToSQL()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -145,7 +145,7 @@ func DeleteByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 
-	_, err = db.Exec("DELETE FROM Customer WHERE ID =?", id)
+	err = h.store.DeleteCustomer(id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("Error in deleting", err)

@@ -81,7 +81,7 @@ func TestUpdateByID(t *testing.T) {
 		r := mux.SetURLVars(req, map[string]string{"id": v.id})
 		w := httptest.NewRecorder()
 
-		UpdateByID(w, r)
+		h.store.UpdateByID(w, r)
 
 		resp := w.Result()
 		defer resp.Body.Close()

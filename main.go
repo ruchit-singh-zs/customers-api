@@ -1,8 +1,10 @@
 package main
 
 import (
-	"customerApi/handlers/customer"
+	"customerApi/drivers"
+	handlers "customerApi/handlers/customer"
 	"customerApi/middleware"
+	stores "customerApi/stores/customer"
 	"log"
 	"net/http"
 
@@ -10,12 +12,15 @@ import (
 )
 
 func main() {
+	db, _ := drivers.ConnectToSQL()
+	s := stores.New(db)
+	h := handlers.New(s)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/customer/{id}", customer.GetByID).Methods(http.MethodGet)
-	r.HandleFunc("/customer", customer.Create).Methods(http.MethodPost)
-	r.HandleFunc("/customer/delete/{id}", customer.DeleteByID).Methods(http.MethodDelete)
-	r.HandleFunc("/customer/update/{id}", customer.UpdateByID).Methods(http.MethodPut)
+	r.HandleFunc("/customer/{id}", h.GetByID).Methods(http.MethodGet)
+	r.HandleFunc("/customer", h.Create).Methods(http.MethodPost)
+	r.HandleFunc("/customer/delete/{id}", h.DeleteByID).Methods(http.MethodDelete)
+	r.HandleFunc("/customer/update/{id}", h.UpdateByID).Methods(http.MethodPut)
 
 	r.Use(middleware.SetContentType)
 
