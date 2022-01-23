@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 
-	"customerApi/drivers"
 	"customerApi/models"
 )
 
@@ -21,13 +20,6 @@ func New(s services.Customer) handler {
 }
 
 func (h handler) Create(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -61,19 +53,12 @@ func (h handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	params := mux.Vars(r)
 	id := params["id"]
 
 	var c models.Customer
 
-	err = h.service.GetCustomer(id)
+	err := h.service.GetCustomer(id)
 
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -98,13 +83,6 @@ func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	params := mux.Vars(r)
 	id := params["id"]
 
@@ -136,17 +114,10 @@ func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) DeleteByID(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	params := mux.Vars(r)
 	id := params["id"]
 
-	err = h.service.DeleteCustomer(id)
+	err := h.service.DeleteCustomer(id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("Error in deleting", err)
