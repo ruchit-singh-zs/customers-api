@@ -12,7 +12,11 @@ import (
 )
 
 func main() {
-	db, _ := drivers.ConnectToSQL()
+	db, err := drivers.ConnectToSQL()
+	if err != nil {
+		log.Println("FATAL, Can't Connect to database")
+	}
+	defer db.Close()
 	s := stores.New(db)
 	h := handlers.New(s)
 
@@ -24,7 +28,7 @@ func main() {
 
 	r.Use(middleware.SetContentType)
 
-	err := http.ListenAndServe(":8080", r)
+	err = http.ListenAndServe(":8080", r)
 	if err != nil {
 		log.Println("Cant Connect!")
 	}

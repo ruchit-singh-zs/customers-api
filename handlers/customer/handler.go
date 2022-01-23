@@ -2,14 +2,12 @@ package customer
 
 import (
 	"customerApi/stores"
-	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
 
-	"customerApi/drivers"
 	"customerApi/models"
 )
 
@@ -22,13 +20,6 @@ func New(store stores.Customer) handler {
 }
 
 func (h handler) Create(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -61,33 +52,26 @@ func (h handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	params := mux.Vars(r)
 	id := params["id"]
-
 	c, err := h.store.GetCustomer(id)
+
 	switch err {
-	case sql.ErrNoRows:
+	case "No record":
 		w.WriteHeader(http.StatusNotFound)
-		_, err = w.Write([]byte("No Record Exists"))
+		_, err := w.Write([]byte("No Record Exists"))
 
 		if err != nil {
 			log.Println(err)
 		}
-	case nil:
+	case "No error":
 		resp, err := json.Marshal(c)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		_, err = w.Write(resp)
 
+		_, err = w.Write(resp)
 		if err != nil {
 			log.Println(err)
 		}
@@ -97,13 +81,6 @@ func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	params := mux.Vars(r)
 	id := params["id"]
 
@@ -135,17 +112,10 @@ func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) DeleteByID(w http.ResponseWriter, r *http.Request) {
-	db, err := drivers.ConnectToSQL()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	params := mux.Vars(r)
 	id := params["id"]
 
-	err = h.store.DeleteCustomer(id)
+	err := h.store.DeleteCustomer(id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("Error in deleting", err)

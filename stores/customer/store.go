@@ -21,12 +21,19 @@ func (s store) CreateCustomer(c models.Customer) error {
 	return err
 }
 
-func (s store) GetCustomer(id string) (models.Customer, error) {
+func (s store) GetCustomer(id string) (models.Customer, string) {
 	var c models.Customer
 	err := s.db.QueryRow("SELECT * FROM Customer WHERE ID = ?", id).
 		Scan(&c.ID, &c.Name, &c.PhoneNo, &c.Address)
 
-	return c, err
+	switch err {
+	case sql.ErrNoRows:
+		return c, "No record"
+	case nil:
+		return c, "No error"
+	default:
+		return c, "Internal Server error"
+	}
 }
 
 func (s store) UpdateCustomer(id string, c models.Customer) error {
