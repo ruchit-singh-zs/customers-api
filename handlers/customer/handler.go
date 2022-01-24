@@ -1,14 +1,17 @@
 package customer
 
 import (
-	"customerApi/stores"
+	"customerApi/errors"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 
 	"customerApi/models"
+	"customerApi/stores"
 )
 
 type handler struct {
@@ -29,13 +32,13 @@ func (h handler) Create(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &c)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = h.store.CreateCustomer(c)
+	err = h.store.Create(c)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		_, errs := w.Write([]byte("Error in Inserting"))
 
 		if errs != nil {
@@ -54,17 +57,18 @@ func (h handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
-	c, err := h.store.GetCustomer(id)
+	cid, _ := strconv.Atoi(id)
+	c, err := h.store.Get(cid)
 
-	switch err {
-	case "No record":
+	switch err.(type) {
+	case errors.NoEntity:
 		w.WriteHeader(http.StatusNotFound)
 		_, err := w.Write([]byte("No Record Exists"))
 
 		if err != nil {
 			log.Println(err)
 		}
-	case "No error":
+	case nil:
 		resp, err := json.Marshal(c)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -83,6 +87,7 @@ func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
+	cid, _ := strconv.Atoi(id)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -97,7 +102,7 @@ func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.UpdateCustomer(id, c)
+	err = h.store.Update(cid, c)
 	if err != nil {
 		log.Printf("Error in Updating: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -115,7 +120,8 @@ func (h handler) DeleteByID(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 
-	err := h.store.DeleteCustomer(id)
+	cid, _ := strconv.Atoi(id)
+	err := h.store.Delete(cid)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("Error in deleting", err)

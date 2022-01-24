@@ -1,9 +1,11 @@
 package customer
 
 import (
+	"customerApi/errors"
+	"database/sql"
+
 	"customerApi/models"
 	"customerApi/stores"
-	"database/sql"
 )
 
 type store struct {
@@ -14,35 +16,35 @@ func New(db *sql.DB) stores.Customer {
 	return store{db: db}
 }
 
-func (s store) CreateCustomer(c models.Customer) error {
+func (s store) Create(customer models.Customer) error {
 	_, err := s.db.Exec("INSERT INTO Customer (ID,NAME , PHONENO, ADDRESS) VALUES (?,?, ?, ?)",
-		c.ID, c.Name, c.PhoneNo, c.Address)
+		customer.ID, customer.Name, customer.PhoneNo, customer.Address)
 
 	return err
 }
 
-func (s store) GetCustomer(id string) (models.Customer, string) {
+func (s store) Get(id int) (models.Customer, error) {
 	var c models.Customer
 	err := s.db.QueryRow("SELECT * FROM Customer WHERE ID = ?", id).
 		Scan(&c.ID, &c.Name, &c.PhoneNo, &c.Address)
 
-	switch err {
-	case sql.ErrNoRows:
-		return c, "No record"
+	switch err.(type) {
+	case errors.NoEntity:
+		return c, err
 	case nil:
-		return c, "No error"
+		return c, nil
 	default:
-		return c, "Internal Server error"
+		return c, err
 	}
 }
 
-func (s store) UpdateCustomer(id string, c models.Customer) error {
+func (s store) Update(id int, customer models.Customer) error {
 	_, err := s.db.Exec("UPDATE Customer SET NAME = ?, PHONENO=?, ADDRESS=? WHERE ID = ?",
-		&c.Name, &c.PhoneNo, &c.Address, id)
+		&customer.Name, &customer.PhoneNo, &customer.Address, id)
 	return err
 }
 
-func (s store) DeleteCustomer(id string) error {
+func (s store) Delete(id int) error {
 	_, err := s.db.Exec("DELETE FROM Customer WHERE ID =?", id)
 	return err
 }

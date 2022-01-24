@@ -1,20 +1,21 @@
 package main
 
 import (
-	"customerApi/drivers"
-	handlers "customerApi/handlers/customer"
-	"customerApi/middleware"
-	stores "customerApi/stores/customer"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"customerApi/drivers"
+	handlers "customerApi/handlers/customer"
+	"customerApi/middleware"
+	stores "customerApi/stores/customer"
 )
 
 func main() {
 	db, err := drivers.ConnectToSQL()
 	if err != nil {
-		log.Println("FATAL, Can't Connect to database")
+		log.Fatalf("FATAL, Can't Connect to database")
 	}
 	defer db.Close()
 	s := stores.New(db)
