@@ -1,17 +1,11 @@
 package customer
 
 import (
-	"customerApi/errors"
-	"encoding/json"
-	"io"
-	"log"
+	"customers-api/models"
+	"customers-api/stores"
+	"developer.zopsmart.com/go/gofr/pkg/errors"
+	"developer.zopsmart.com/go/gofr/pkg/gofr"
 	"net/http"
-	"strconv"
-
-	"github.com/gorilla/mux"
-
-	"customerApi/models"
-	"customerApi/stores"
 )
 
 type handler struct {
@@ -22,116 +16,95 @@ func New(store stores.Customer) handler {
 	return handler{store: store}
 }
 
-func (h handler) Create(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-
+func (h handler) Create(ctx *gofr.Context) (interface{}, error) {
 	var c models.Customer
-	err = json.Unmarshal(body, &c)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	if err := ctx.Bind(&c); err != nil {
+		return nil, errors.InvalidParam{Param: []string{"body"}}
 	}
 
-	err = h.store.Create(c)
+	if c.ID == "0" || len(c.Name) == 0 || len(c.PhoneNo) < 10 || len(c.Address) == 0 {
+		return nil, errors.InvalidParam{Param: []string{c.ID, c.Name, c.PhoneNo, c.Address}}
+	}
+	result, err := h.store.Create(ctx, c)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, errs := w.Write([]byte("Error in Inserting"))
-
-		if errs != nil {
-			log.Println(errs)
-		}
-
-		return
+		return nil, errors.DB{Err: errors.Error("internal server error")}
 	}
 
-	_, err = w.Write([]byte("successfully created"))
-	if err != nil {
-		log.Println(err)
+	resp := models.Response{
+		Customer:   result,
+		Message:    "Created Successfully",
+		StatusCode: http.StatusCreated,
 	}
+	return resp, nil
 }
 
-func (h handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-	cid, _ := strconv.Atoi(id)
-	c, err := h.store.Get(cid)
+func (h handler) GetByID(ctx *gofr.Context) (interface{}, error) {
+	id := ctx.PathParam("id")
+	resp, err := h.store.GetByID(ctx, id)
 
-	switch err.(type) {
-	case errors.NoEntity:
-		w.WriteHeader(http.StatusNotFound)
-		_, err := w.Write([]byte("No Record Exists"))
-
-		if err != nil {
-			log.Println(err)
-		}
-	case nil:
-		resp, err := json.Marshal(c)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		_, err = w.Write(resp)
-		if err != nil {
-			log.Println(err)
-		}
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
+	if id == "" {
+		return nil, errors.MissingParam{Param: []string{"id"}}
 	}
+
+	if err != nil {
+		return nil, errors.EntityNotFound{
+			Entity: "Customer",
+			ID:     id,
+		}
+	}
+
+	result := models.Response{}
+	result = models.Response{
+		Customer:   resp,
+		Message:    "Retrieved Customer Successfully",
+		StatusCode: http.StatusOK,
+	}
+
+	return result, nil
+
 }
 
-func (h handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-	cid, _ := strconv.Atoi(id)
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-
+func (h handler) UpdateByID(ctx *gofr.Context) (interface{}, error) {
 	var c models.Customer
-	err = json.Unmarshal(body, &c)
+	id := ctx.PathParam("id")
 
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	if err := ctx.Bind(&c); err != nil {
+		return nil, errors.InvalidParam{Param: []string{"body"}}
 	}
 
-	err = h.store.Update(cid, c)
-	if err != nil {
-		log.Printf("Error in Updating: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-
-		return
+	if len(id) == 0 {
+		return nil, errors.InvalidParam{Param: []string{id}}
 	}
 
-	_, err = w.Write([]byte("Updated Successfully"))
+	err := h.store.UpdateByID(ctx, id, c)
 	if err != nil {
-		log.Println(err)
+		return nil, errors.DB{Err: errors.Error("internal server error")}
 	}
+
+	result := models.Response{
+		Customer:   c,
+		Message:    "Updated Successfully",
+		StatusCode: http.StatusOK,
+	}
+	return result, nil
 }
 
-func (h handler) DeleteByID(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
+func (h handler) DeleteByID(ctx *gofr.Context) (interface{}, error) {
+	id := ctx.PathParam("id")
 
-	cid, _ := strconv.Atoi(id)
-	err := h.store.Delete(cid)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Error in deleting", err)
-
-		return
+	if len(id) == 0 {
+		return nil, errors.InvalidParam{Param: []string{id}}
 	}
 
-	_, err = w.Write([]byte("Deleted Successfully"))
+	_, err := h.store.DeleteByID(ctx, id)
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
-		log.Println(err)
+		return nil, errors.DB{Err: errors.Error("internal server error")}
 	}
+
+	resp := models.Response{
+		Customer:   models.Customer{ID: id},
+		Message:    "Deleted Successfully",
+		StatusCode: http.StatusOK,
+	}
+	return resp, nil
 }
