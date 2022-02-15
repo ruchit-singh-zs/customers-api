@@ -1,50 +1,57 @@
 package customer
 
 import (
-	"customerApi/errors"
-	"database/sql"
-
-	"customerApi/models"
-	"customerApi/stores"
+	"customers-api/models"
+	"customers-api/stores"
+	"developer.zopsmart.com/go/gofr/pkg/gofr"
+	"log"
 )
 
 type store struct {
-	db *sql.DB
 }
 
-func New(db *sql.DB) stores.Customer {
-	return store{db: db}
+func New() stores.Customer {
+	return store{}
 }
 
-func (s store) Create(customer models.Customer) error {
-	_, err := s.db.Exec("INSERT INTO Customer (ID,NAME , PHONENO, ADDRESS) VALUES (?,?, ?, ?)",
+func (s store) Create(ctx *gofr.Context, customer models.Customer) (models.Customer, error) {
+	_, err := ctx.DB().ExecContext(ctx, "INSERT INTO customer (id,name,phoneNo,address) VALUES (?,?, ?, ?)",
 		customer.ID, customer.Name, customer.PhoneNo, customer.Address)
 
-	return err
+	if err != nil {
+		return customer, err
+	}
+
+	return customer, nil
 }
 
-func (s store) Get(id int) (models.Customer, error) {
+func (s store) GetByID(ctx *gofr.Context, id string) (models.Customer, error) {
 	var c models.Customer
-	err := s.db.QueryRow("SELECT * FROM Customer WHERE ID = ?", id).
-		Scan(&c.ID, &c.Name, &c.PhoneNo, &c.Address)
-
-	switch err.(type) {
-	case errors.NoEntity:
-		return c, err
-	case nil:
-		return c, nil
-	default:
+	err := ctx.DB().QueryRowContext(ctx, "SELECT * FROM customer WHERE id = ?", id).Scan(&c.ID, &c.Name, &c.PhoneNo, &c.Address)
+	if err != nil {
 		return c, err
 	}
+	return c, nil
 }
 
-func (s store) Update(id int, customer models.Customer) error {
-	_, err := s.db.Exec("UPDATE Customer SET NAME = ?, PHONENO=?, ADDRESS=? WHERE ID = ?",
-		&customer.Name, &customer.PhoneNo, &customer.Address, id)
-	return err
+func (s store) UpdateByID(ctx *gofr.Context, id string, c models.Customer) error {
+	_, err := ctx.DB().ExecContext(ctx, "UPDATE customer SET name = ?, phoneNo = ?, address = ? WHERE id = ?",
+		c.Name, c.PhoneNo, c.Address, id)
+
+	log.Println(c.ID, c.Name, c.Address)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (s store) Delete(id int) error {
-	_, err := s.db.Exec("DELETE FROM Customer WHERE ID =?", id)
-	return err
+func (s store) DeleteByID(ctx *gofr.Context, id string) (models.Customer, error) {
+	var c models.Customer
+	_, err := ctx.DB().ExecContext(ctx, "DELETE FROM customer WHERE id = ?", id)
+	if err != nil {
+		return c, err
+	}
+	return c, nil
 }
